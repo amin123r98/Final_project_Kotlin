@@ -1,39 +1,82 @@
-# ktor-sample
+# 🛒 Ktor Shop Backend Service
 
-This project was created using the [Ktor Project Generator](https://start.ktor.io).
+Профессиональный бэкенд-сервис для интернет-магазина, построенный на микросервисной архитектуре. Проект реализует полный цикл: от регистрации пользователя до обработки заказов через очереди сообщений.
 
-Here are some useful links to get you started:
+## 🚀 Технологический стек
 
-- [Ktor Documentation](https://ktor.io/docs/home.html)
-- [Ktor GitHub page](https://github.com/ktorio/ktor)
-- The [Ktor Slack chat](https://app.slack.com/client/T09229ZC6/C0A974TJ9). You'll need to [request an invite](https://surveys.jetbrains.com/s3/kotlin-slack-sign-up) to join.
+*   **Framework:** Ktor 3.0 (Kotlin)
+*   **Database:** PostgreSQL 15
+*   **ORM:** JetBrains Exposed
+*   **Migrations:** Flyway
+*   **Security:** JWT (JSON Web Tokens) & BCrypt hashing
+*   **Caching:** Redis (Jedis)
+*   **Message Broker:** RabbitMQ
+*   **Containerization:** Docker & Docker-compose
+*   **Testing:** JUnit 4 & H2 In-memory DB
 
-## Features
+## 🛠 Архитектура проекта
 
-Here's a list of features included in this project:
+Проект реализован по принципам **Clean Architecture** (Чистая архитектура):
+*   `controller`: Обработка HTTP-запросов и валидация.
+*   `service`: Бизнес-логика (транзакции, расчеты, интеграция с кэшем и очередями).
+*   `repository`: Слой доступа к данным (Exposed Tables).
+*   `domain`: Модели данных (Data classes) и сериализация.
+*   `infrastructure`: Настройки внешних сервисов (Redis, RabbitMQ).
+*   `worker`: Фоновый процесс для обработки очереди заказов.
 
-| Name                                               | Description                                                 |
-| ----------------------------------------------------|------------------------------------------------------------- |
-| [Routing](https://start.ktor.io/p/routing-default) | Allows to define structured routes and associated handlers. |
+## 📦 Быстрый запуск
 
-## Building & Running
+1.  **Клонируйте репозиторий:**
+    ```bash
+    git clone https://github.com/amin123r98/Final_project_Kotlin
+    cd Final_project_Kotlin
+    ```
 
-To build or run the project, use one of the following tasks:
+2.  **Запустите инфраструктуру (Postgres, Redis, RabbitMQ):**
+    ```bash
+    docker-compose up -d
+    ```
 
-| Task                                    | Description                                                          |
-| -----------------------------------------|---------------------------------------------------------------------- |
-| `./gradlew test`                        | Run the tests                                                        |
-| `./gradlew build`                       | Build everything                                                     |
-| `./gradlew buildFatJar`                 | Build an executable JAR of the server with all dependencies included |
-| `./gradlew buildImage`                  | Build the docker image to use with the fat JAR                       |
-| `./gradlew publishImageToLocalRegistry` | Publish the docker image locally                                     |
-| `./gradlew run`                         | Run the server                                                       |
-| `./gradlew runDocker`                   | Run using the local docker image                                     |
+3.  **Запустите приложение:**
+    Откройте проект в IntelliJ IDEA и запустите файл `src/main/kotlin/com/example/shop/Application.kt`.
 
-If the server starts successfully, you'll see the following output:
+4.  **Проверка работоспособности:**
+    Сервер будет доступен по адресу: `http://localhost:8080`
 
-```
-2024-12-04 14:32:45.584 [main] INFO  Application - Application started in 0.303 seconds.
-2024-12-04 14:32:45.682 [main] INFO  Application - Responding at http://0.0.0.0:8080
-```
+## 📑 Документация API
 
+### 1. Аутентификация
+| Метод | Путь | Описание |
+| :--- | :--- | :--- |
+| `POST` | `/auth/register` | Регистрация нового пользователя |
+| `POST` | `/auth/login` | Вход и получение JWT-токена |
+
+### 2. Товары (Products)
+| Метод | Путь | Роль | Описание |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/products` | Всем | Просмотр всех товаров (с кэшированием) |
+| `GET` | `/products/{id}` | Всем | Получить товар по ID (из Redis/DB) |
+| `POST` | `/products` | **Admin** | Добавить новый товар |
+| `PUT` | `/products/{id}` | **Admin** | Изменить данные товара |
+| `DELETE` | `/products/{id}` | **Admin** | Удалить товар |
+
+### 3. Заказы (Orders)
+| Метод | Путь | Роль | Описание |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/orders` | User | Создать заказ (с проверкой Stock и RabbitMQ) |
+| `GET` | `/orders` | User | Просмотр истории своих заказов |
+| `DELETE` | `/orders/{id}` | User | Отмена заказа (возврат товара на склад) |
+| `GET` | `/stats/orders` | **Admin** | Получение общей статистики продаж |
+
+## ⚡ Особенности реализации
+
+1.  **Бизнес-логика заказов:** При создании заказа проверяется наличие товара на складе (`stock`), списывается количество, записывается лог в `audit_logs` и отправляется событие в RabbitMQ. Всё происходит внутри одной транзакции.
+2.  **Redis Caching:** Данные о товарах кэшируются в Redis (TTL 5 минут). Кэш автоматически инвалидируется (удаляется) при обновлении или удалении товара админом.
+3.  **RabbitMQ Worker:** Реализован асинхронный воркер, который в реальном времени слушает очередь `order_queue` и имитирует отправку email-уведомлений клиентам.
+4.  **Database Migrations:** Flyway автоматически создает и обновляет структуру таблиц при старте приложения.
+
+## 🧪 Тестирование
+
+Запуск тестов:
+```bash
+./gradlew test
